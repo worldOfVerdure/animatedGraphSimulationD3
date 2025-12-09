@@ -1,6 +1,6 @@
 const metadata = {
-  title: 'Personal Template',
-  description: 'Personal template used to more quickly build applications.',
+  title: 'Graph Simulation - D3.js',
+  description: 'Graph animation powered by D3.js',
   keywords: [
     
   ],
@@ -26,8 +26,8 @@ const metadata = {
   },
   manifest: '/favicons/site.webmanifest',
   openGraph: {
-    title: 'Personal Template',
-    description: 'Personal template used to more quickly build applications.',
+    title: 'Graph Simulation - D3.js',
+    description: 'Graph animation powered by D3.js',
     url: 'https://example.com',
     images: [
       {
@@ -40,8 +40,8 @@ const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Personal Template',
-    description: 'Personal template used to more quickly build applications.',
+    title: 'Graph Simulation - D3.js',
+    description: 'Graph animation powered by D3.js',
     images: ['/og-image.png']
   },
 };

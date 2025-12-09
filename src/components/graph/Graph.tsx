@@ -1,18 +1,38 @@
 import * as d3 from 'd3-force';
 import { Box } from '@mui/material';
 import customBreakpoints from '../../theme/base/breakpoints.ts';
+import { type SimulationNodeDatum } from "d3-force";
 import { useEffect, useRef, useState } from 'react';
  
-type Node = {
-  id: number;
-  x: number;
-  y: number;
-  vx?: number;
-  vy?: number;
+/*
+Importing with `import * as d3 from "d3-force"` only brings in the module’s
+runtime exports (functions, constants, etc.). It does not include TypeScript
+types such as `SimulationNodeDatum`, because types exist only at compile time
+and are erased from the generated JavaScript.
+
+To use D3’s type definitions, you must import them explicitly with a type-only
+import, for example:
+
+  import { type SimulationNodeDatum } from "d3-force";
+
+This ensures TypeScript can check your code against D3’s type contracts,
+while keeping the compiled output free of type-related imports.
+
+Note:
+interface SimulationNodeDatum {
+  index?: number;       // assigned by simulation
+  x?: number;           // current x-position
+  y?: number;           // current y-position
+  vx?: number;          // current x-velocity
+  vy?: number;          // current y-velocity
+  fx?: number | null;   // fixed x-position (if pinned)
+  fy?: number | null;   // fixed y-position (if pinned)
+}
+*/
+type Node = SimulationNodeDatum & {
+  id: number; // Personal identifier separate from index
   radius?: number;
   color?: string;
-  fx?: number | null;
-  fy?: number | null;
 };
 
 const NODE_RADIUS = 4;
@@ -118,6 +138,24 @@ export default function CanvasForceGraph() {
 
     // initialize size from container
     const rect = container.getBoundingClientRect();
+    /*
+      Math.floor - using integers avoids fractional widths that can cause subtle layout rounding
+        differences and inconsistent drawing coordinates.
+      Math.max - with 1 ensures we never set zero or negative dimensions which avoids bugs.
+
+      1) Commit / layout — React commits DOM with the initial size state and CSS width:100% is
+         applied; the browser computes the CSS box (e.g., 600px) and paints that first frame. 
+
+      2) Effects run  (post‑paint, in source order):
+         2.1) Measurement effect runs, reads getBoundingClientRect() and calls setSize(measured)
+         (this schedules a state update).
+         2.2) Canvas effect runs next in the same phase and still sees the initial size (not the
+         newly scheduled value), so it may write canvas.style.width/height and canvas.width/height
+         using that initial value (e.g., 900px). That write triggers a reflow/repaint.
+
+      3) State update applied — React re-renders with the measured size and effects run again; the
+      canvas is updated to the correct explicit size and buffer, producing the final paint.
+    */
     setSize({
       width: Math.max(1, Math.floor(rect.width)),
       height: Math.max(1, Math.floor(rect.height)),
@@ -385,18 +423,18 @@ export default function CanvasForceGraph() {
       ref={containerRef}
       sx={{
         backgroundColor: "#0a1a1f",
-        width: "100vw",
         height: "100vh",
-        position: "relative"
+        position: "relative",
+        width: "100vw"
       }}
     >
       <canvas
         ref={canvasRef}
         style={{
           display: "block",
-          width: "100%",
           height: "100%",
           touchAction: "none", // extra safety for some browsers
+          width: "100%"
         }}
       />
     </Box>
