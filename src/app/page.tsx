@@ -1,9 +1,11 @@
-import Test from '../components/test/Test.tsx';
+'use client';
+
+import Graph from '@/components/graph/Graph';
 
 export default function HomePage() {
   return (
     <main>
-      <Test />
+      <Graph />
     </main>
   );
 }
