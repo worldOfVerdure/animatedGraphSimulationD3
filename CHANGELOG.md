@@ -2,22 +2,30 @@
 
 All notable changes to this project will be documented here.
 
-## [1.1.0] - 2025-10-24
+## 12/10/2025
 
-⬆️ Upgraded Next.js from 15.5.2 to ^16.0.0, bringing in the latest performance and framework improvements
+### Changed
 
-🧹 Updated eslint-config-next to ^16.0.0 to align with the new Next.js version
+- Updated `Node` type to extend **`SimulationNodeDatum`** for full compatibility with D3 force simulation.
+- Removed redundant manual declarations of simulation fields (`x`, `y`, `vx`, `vy`, `fx`, `fy`, `index`).
+- Ensured type safety by inheriting simulation‑managed properties directly from D3 typings.
 
-🧠 Downgraded @types/react and @types/react-dom to ^18.2.0 to match the current React 18.3.1 runtime and avoid type mismatches
+### Added
 
-## [1.0.1] - 2025-10-24
+- `id: number` — personal identifier distinct from D3’s `index`.
+- `radius?: number` — optional visual property for circle rendering.
+- `color?: string` — optional visual property for styling nodes.
 
-Emotion JSX Integration:
+### Benefits
 
-✅ Enabled Emotion's automatic JSX runtime by adding jsxImportSource: "@emotion/react" to tsconfig.base.json
+- Cleaner type definition with reduced redundancy.
+- Improved IntelliSense and type safety for simulation + rendering logic.
+- Future‑proofed: automatically inherits updates to `SimulationNodeDatum`.
 
-✅ Removed legacy /** @jsxImportSource @emotion/react */ comment in favor of global config
+---
 
-## [1.0.0] - 2025-10-16
+## 12/09/2025
 
-First release.
+### Added
+
+- Initial project setup

@@ -72,7 +72,7 @@ function hexToRgb(hex: string) {
  * - separate proximity radii for nodes and edges (edges disappear before nodes)
  * - improved mobile dragging using pointer capture, touch-action none, rAF batching and smoothing (lerp)
  */
-export default function CanvasForceGraph() {
+export default function Graph() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const simulationRef = useRef<d3.Simulation<Node, undefined> | null>(null);
@@ -80,7 +80,7 @@ export default function CanvasForceGraph() {
   // responsive size state (initial fallback)
   const [size, setSize] = useState({ width: INITIAL_WIDTH, height: INITIAL_HEIGHT });
 
-  const SPEED_FACTOR = 0.44; // 1.0 = original speed
+  const SPEED_FACTOR = 0.44;
 
   // color weights
   const COLOR_WEIGHTS: { color: string; weight: number }[] = [
@@ -95,7 +95,7 @@ export default function CanvasForceGraph() {
 
   // Determine node count based on width using your custom breakpoints
   function getNodeCountForWidth(width: number) {
-    const { sm, lg } = customBreakpoints;
+    const { sm, lg } = customBreakpoints; //object destructuring
     if (width < sm) return 75;        // mobile
     if (width < lg) return 150;       // tablet (sm <= width < lg)
     return 300;                       // desktop and larger (>= lg)
@@ -127,7 +127,7 @@ export default function CanvasForceGraph() {
         radius,
         color: pickWeightedColor(),
         fx: null,
-        fy: null,
+        fy: null
       };
     });
   }
@@ -162,6 +162,19 @@ export default function CanvasForceGraph() {
     });
 
     // observe size changes
+    /*
+    Mechanics of the ResizzeObserver API:
+    - The ResizeObserver API provides a way to asynchronously observe changes in the size of DOM elements.
+    - It's particularly useful for responsive design, where you need to adjust the layout or behavior of an element based on its size.
+    - The `ResizeObserver` constructor takes a callback function that will be called whenever the
+      size of the observed element changes. 
+    - The `observe` method is used to start observing changes in the size of the specified element.
+    - The `disconnect` method is used to stop observing changes.
+
+    - The `ResizeObserverCallback` function is called whenever the size of the observed element changes. It receives an array of `ResizeObserverEntry` objects, which provide information about the new size of the element.
+    - Inside the callback, you can update the state or perform other actions based on the new size
+      of the element.
+    */
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const cr = entry.contentRect;
@@ -172,7 +185,6 @@ export default function CanvasForceGraph() {
       }
     });
     ro.observe(container);
-
     return () => ro.disconnect();
   }, []);
 
@@ -184,16 +196,48 @@ export default function CanvasForceGraph() {
 
     // compute node count for current width
     const NODE_COUNT = getNodeCountForWidth(width);
-    console.log(`CanvasForceGraph — size: ${width}x${height}, NODE_COUNT: ${NODE_COUNT}`);
+    // console.log(`CanvasForceGraph — size: ${width}x${height}, NODE_COUNT: ${NODE_COUNT}`);
 
     // Hi-DPI scaling
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = window.devicePixelRatio || 1; //Measure the device pixel ratio defined as number of pixels per CSS pixel
     canvas.width = Math.max(1, Math.floor(width * dpr));
     canvas.height = Math.max(1, Math.floor(height * dpr));
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
-    const ctx = canvas.getContext("2d")!;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const ctx = canvas.getContext("2d", { alpha: false })!;
+    /*
+      🔎 Canvas Transform Matrix
+
+      The 2D canvas transform is represented by a 3×3 matrix. Because the
+      bottom row is always [0, 0, 1], only six values are required:
+
+        setTransform(a, b, c, d, e, f) =>
+        [ a  c  e
+          b  d  f
+          0  0  1 ]
+
+      Where:
+        a = scale X
+        b = skew Y
+        c = skew X
+        d = scale Y
+        e = translate X
+        f = translate Y
+
+      ✅ Identity matrix (do nothing):
+        [ 1 0 0
+          0 1 0
+          0 0 1 ]
+
+      For the identity transform:
+        a = 1   (no scale X)
+        d = 1   (no scale Y)
+        b = 0,
+        c = 0   (no skew/rotation)
+        e = 0,
+        f = 0   (no translation)
+    */
+    ctx.setTransform(1, 0, 0, 1, 0, 0); //Multiplying by identity matrix resets any existing transforms
     ctx.scale(dpr, dpr);
 
     // ensure touch interactions don't trigger page scroll while interacting
@@ -203,7 +247,7 @@ export default function CanvasForceGraph() {
     const nodes = generateNodes(NODE_COUNT, width, height);
 
     // create a dedicated mouse node (id = -1)
-    const mouseRadius = Math.max(1, NODE_RADIUS * 0.15); // fixed, small size
+    const mouseRadius = Math.max(1, NODE_RADIUS * 0.15);
     const mouseNode: Node = {
       id: -1,
       x: width / 2,
@@ -211,9 +255,9 @@ export default function CanvasForceGraph() {
       vx: 0,
       vy: 0,
       radius: mouseRadius,
-      color: "#3cd962", // requested color
+      color: "#3cd962",
       fx: null,
-      fy: null,
+      fy: null
     };
 
     // append mouse node to nodes array so it participates in edges
@@ -226,6 +270,7 @@ export default function CanvasForceGraph() {
     }
 
     // Create simulation
+    // Each method is defined to return this (the simulation instance).
     const simulation = d3.forceSimulation(nodes)
       .force("charge", d3.forceManyBody().strength(0))
       .alpha(1)
