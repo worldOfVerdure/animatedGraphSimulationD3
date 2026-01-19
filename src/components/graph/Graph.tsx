@@ -48,7 +48,7 @@ const MOUSE_EFFECT_RADIUS_EDGES = 375; // edges disappear sooner than nodes
 const MOUSE_FALLOFF: "linear" | "quadratic" = "linear";
 
 /** Smoothing for touch dragging (0 = immediate, 1 = no movement) */
-const DRAG_LERP = 0.18;
+const DRAG_LERP = 0;
 
 /** Utility: convert #rrggbb to {r,g,b} */
 function hexToRgb(hex: string) {
@@ -163,7 +163,7 @@ export default function Graph() {
 
     // observe size changes
     /*
-    Mechanics of the ResizzeObserver API:
+    Mechanics of the ResizeObserver API:
     - The ResizeObserver API provides a way to asynchronously observe changes in the size of DOM elements.
     - It's particularly useful for responsive design, where you need to adjust the layout or behavior of an element based on its size.
     - The `ResizeObserver` constructor takes a callback function that will be called whenever the
