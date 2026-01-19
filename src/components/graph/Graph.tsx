@@ -48,7 +48,7 @@ const MOUSE_EFFECT_RADIUS_EDGES = 375; // edges disappear sooner than nodes
 const MOUSE_FALLOFF: "linear" | "quadratic" = "linear";
 
 /** Smoothing for touch dragging (0 = immediate, 1 = no movement) */
-const DRAG_LERP = 1;
+const DRAG_LERP = .18;
 
 /** Utility: convert #rrggbb to {r,g,b} */
 function hexToRgb(hex: string) {
@@ -141,21 +141,108 @@ export default function Graph() {
     /*
       Math.floor - using integers avoids fractional widths that can cause subtle layout rounding
         differences and inconsistent drawing coordinates.
-      Math.max - with 1 ensures we never set zero or negative dimensions which avoids bugs.
+      Math.max - with 1 ensures we never set zero or negative dimensions which avoids bugs. */
 
-      1) Commit / layout — React commits DOM with the initial size state and CSS width:100% is
-         applied; the browser computes the CSS box (e.g., 600px) and paints that first frame. 
+      /* Deep Dive
+  ============================================================
+  HOW SIZE INITIALIZATION WORKS IN THIS COMPONENT
+  ============================================================
 
-      2) Effects run  (post‑paint, in source order):
-         2.1) Measurement effect runs, reads getBoundingClientRect() and calls setSize(measured)
-         (this schedules a state update).
-         2.2) Canvas effect runs next in the same phase and still sees the initial size (not the
-         newly scheduled value), so it may write canvas.style.width/height and canvas.width/height
-         using that initial value (e.g., 900px). That write triggers a reflow/repaint.
+  COMPONENT STRUCTURE:
+    <Box ref={containerRef} sx={{ width: "100vw", height: "100vh" }}>
+      <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
+    </Box>
 
-      3) State update applied — React re-renders with the measured size and effects run again; the
-      canvas is updated to the correct explicit size and buffer, producing the final paint.
-    */
+  IMPORTANT FACTS:
+    - The container <Box> is sized entirely by CSS (100vw × 100vh).
+    - The canvas is also sized by CSS (100% × 100%), so it visually fills the container.
+    - BUT the canvas's *drawing buffer* (canvas.width / canvas.height) is NOT set by CSS.
+      It defaults to 300 × 150 until we explicitly set it.
+    - The `size` state controls ONLY the drawing buffer, not the CSS layout.
+
+  The steps below describe exactly how React flows from:
+    (A) initial fallback drawing-buffer size
+    → (B) real measured container size
+    → (C) continuous updates via ResizeObserver.
+
+  ------------------------------------------------------------
+  1) Initial render
+  ------------------------------------------------------------
+  - React renders the <Box> container with CSS width:100vw and height:100vh.
+  - React renders the <canvas> with CSS width:100% and height:100%.
+  - The canvas visually fills the container.
+  - BUT the canvas's internal drawing buffer is still the browser default (300 × 150),
+    because we have not yet set canvas.width or canvas.height.
+
+  ------------------------------------------------------------
+  2) Browser layout + first paint
+  ------------------------------------------------------------
+  - The browser computes the container's actual pixel size (e.g., 1366 × 768).
+  - The canvas visually matches that size due to CSS (100% × 100%).
+  - The drawing buffer is still 300 × 150, so the canvas is blurry or scaled.
+
+  ------------------------------------------------------------
+  3) React runs the measurement useEffect (this effect)
+  ------------------------------------------------------------
+  - We call container.getBoundingClientRect() to read the REAL rendered size
+    of the container (e.g., width=1366, height=768).
+  - We call setSize({ width: 1366, height: 768 }).
+      IMPORTANT: React does NOT re-render immediately.
+      It QUEUES the state update.
+  - React continues executing the rest of this effect.
+
+  ------------------------------------------------------------
+  4) Still inside the same effect: set up ResizeObserver
+  ------------------------------------------------------------
+  - We create a ResizeObserver and call ro.observe(container).
+  - This registers a listener for future container size changes.
+  - No re-render happens yet; the observer is just set up.
+
+  ------------------------------------------------------------
+  5) The effect finishes completely
+  ------------------------------------------------------------
+  - Only AFTER the effect finishes does React process the queued state update.
+  - This ensures effects run to completion before React re-renders.
+
+  ------------------------------------------------------------
+  6) React re-renders with the REAL container size
+  ------------------------------------------------------------
+  - Now `size` contains the measured values (e.g., 1366 × 768).
+  - The canvas still uses CSS for layout, but now the canvas-setup effect runs.
+  - The canvas-setup effect sets:
+        canvas.width  = size.width   (e.g., 1366)
+        canvas.height = size.height  (e.g., 768)
+    which updates the drawing buffer to match the container exactly.
+
+  ------------------------------------------------------------
+  7) The UI is now fully synchronized
+  ------------------------------------------------------------
+  - The container and canvas visually match (CSS).
+  - The canvas drawing buffer matches the container's pixel size.
+  - The graph draws crisply and at the correct resolution.
+
+  ------------------------------------------------------------
+  8) Future resizes handled by ResizeObserver
+  ------------------------------------------------------------
+  - If the container changes size (e.g., window resize, zoom, orientation change),
+    ResizeObserver fires.
+  - The callback receives entry.contentRect with the new size.
+  - We call setSize(...) again with the updated dimensions.
+  - React re-renders, the canvas effect updates the drawing buffer,
+    and the graph redraws.
+  - This keeps the canvas perfectly responsive forever.
+
+  ============================================================
+  SUMMARY
+  ============================================================
+  - CSS determines the container and canvas layout size.
+  - The canvas drawing buffer starts at 300 × 150.
+  - The measurement effect reads the real container size after first paint.
+  - setSize queues a re-render.
+  - The canvas effect sets the drawing buffer to match the container.
+  - ResizeObserver keeps everything synced on future resizes.
+*/
+
     setSize({
       width: Math.max(1, Math.floor(rect.width)),
       height: Math.max(1, Math.floor(rect.height)),
@@ -316,6 +403,7 @@ export default function Graph() {
 
       if (isDragging) {
         // Smooth the drag motion for touch by lerping toward the pointer
+        //!zzz How does lerp and screen refreshes work with each other?
         mouseNode.x = lerp(mouseNode.x ?? cx, cx, DRAG_LERP);
         mouseNode.y = lerp(mouseNode.y ?? cy, cy, DRAG_LERP);
         mouseNode.fx = mouseNode.x;
